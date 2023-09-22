@@ -200,30 +200,30 @@ impl IxyDevice for IxgbeDevice {
                 }
             }
 
-            if self.interrupts.interrupts_enabled {
-                let interrupt = &mut self.interrupts.queues[queue_id as usize];
-                let int_en = interrupt.interrupt_enabled;
-                interrupt.rx_pkts += received_packets as u64;
+            // if self.interrupts.interrupts_enabled {
+            //     let interrupt = &mut self.interrupts.queues[queue_id as usize];
+            //     let int_en = interrupt.interrupt_enabled;
+            //     interrupt.rx_pkts += received_packets as u64;
 
-                interrupt.instr_counter += 1;
-                if (interrupt.instr_counter & 0xFFF) == 0 {
-                    interrupt.instr_counter = 0;
-                    let elapsed = interrupt.last_time_checked.elapsed();
-                    let diff =
-                        elapsed.as_secs() * 1_000_000_000 + u64::from(elapsed.subsec_nanos());
-                    if diff > interrupt.interval {
-                        interrupt.check_interrupt(diff, received_packets, num_packets);
-                    }
+            //     interrupt.instr_counter += 1;
+            //     if (interrupt.instr_counter & 0xFFF) == 0 {
+            //         interrupt.instr_counter = 0;
+            //         let elapsed = interrupt.last_time_checked.elapsed();
+            //         let diff =
+            //             elapsed.as_secs() * 1_000_000_000 + u64::from(elapsed.subsec_nanos());
+            //         if diff > interrupt.interval {
+            //             interrupt.check_interrupt(diff, received_packets, num_packets);
+            //         }
 
-                    if int_en != interrupt.interrupt_enabled {
-                        if interrupt.interrupt_enabled {
-                            // self.enable_interrupt(queue_id).unwrap();
-                        } else {
-                            self.disable_interrupt(queue_id);
-                        }
-                    }
-                }
-            }
+            //         if int_en != interrupt.interrupt_enabled {
+            //             if interrupt.interrupt_enabled {
+            //                 // self.enable_interrupt(queue_id).unwrap();
+            //             } else {
+            //                 self.disable_interrupt(queue_id);
+            //             }
+            //         }
+            //     }
+            // }
         }
 
         if rx_index != last_rx_index {
@@ -278,7 +278,7 @@ impl IxyDevice for IxgbeDevice {
                     ptr::write_volatile(
                         &mut (*queue.descriptors.add(cur_index)).read.cmd_type_len as *mut u32,
                         IXGBE_ADVTXD_DCMD_EOP
-                            | IXGBE_ADVTXD_DCMD_RS
+                            | IXGBE_ADVTXD_DCMD_RS // Ramla: setting RS for every packet
                             | IXGBE_ADVTXD_DCMD_IFCS
                             | IXGBE_ADVTXD_DCMD_DEXT
                             | IXGBE_ADVTXD_DTYP_DATA
@@ -500,7 +500,7 @@ impl IxgbeDevice {
 
         // enable CRC offloading
         self.set_flags32(IXGBE_HLREG0, IXGBE_HLREG0_RXCRCSTRP);
-        self.set_flags32(IXGBE_RDRXCTL, IXGBE_RDRXCTL_CRCSTRIP);
+        self.set_flags32(IXGBE_RDRXCTL, IXGBE_RDRXCTL_CRCSTRIP); // Ramla: bug rdrxctl reserved bits are not set
 
         // accept broadcast packets
         self.set_flags32(IXGBE_FCTRL, IXGBE_FCTRL_BAM);
@@ -588,7 +588,7 @@ impl IxgbeDevice {
         }
 
         // required when not using DCB/VTd
-        self.set_reg32(IXGBE_DTXMXSZRQ, 0xffff);
+        self.set_reg32(IXGBE_DTXMXSZRQ, 0xffff); // Ramla: bug writing to reserved bits
         self.clear_flags32(IXGBE_RTTDCS, IXGBE_RTTDCS_ARBDIS);
 
         // configure queues
@@ -620,7 +620,7 @@ impl IxgbeDevice {
             // there are no defines for this in constants.rs for some reason
             // pthresh: 6:0, hthresh: 14:8, wthresh: 22:16
             txdctl &= !(0x7F | (0x7F << 8) | (0x7F << 16));
-            txdctl |= 36 | (8 << 8) | (4 << 16);
+            txdctl |= 36 | (8 << 8) | (4 << 16); // Ramla: bug setting wthresh
 
             self.set_reg32(IXGBE_TXDCTL(u32::from(i)), txdctl);
 
@@ -637,7 +637,7 @@ impl IxgbeDevice {
         }
 
         // final step: enable DMA
-        self.set_reg32(IXGBE_DMATXCTL, IXGBE_DMATXCTL_TE);
+        self.set_reg32(IXGBE_DMATXCTL, IXGBE_DMATXCTL_TE); // Ramla: bug, need to set this after the first queue
 
         Ok(())
     }
@@ -752,68 +752,68 @@ impl IxgbeDevice {
     fn set_promisc(&self, enabled: bool) {
         if enabled {
             info!("enabling promisc mode");
-            self.set_flags32(IXGBE_FCTRL, IXGBE_FCTRL_MPE | IXGBE_FCTRL_UPE);
+            self.set_flags32(IXGBE_FCTRL, IXGBE_FCTRL_MPE | IXGBE_FCTRL_UPE); // Ramla: DPDK Bug 21, rxctrl should be disabled before setting this
         } else {
             info!("disabling promisc mode");
             self.clear_flags32(IXGBE_FCTRL, IXGBE_FCTRL_MPE | IXGBE_FCTRL_UPE);
         }
     }
 
-    /// Returns the register at `self.addr` + `reg`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `self.addr` + `reg` does not belong to the mapped memory of the pci device.
-    fn get_reg32(&self, reg: u32) -> u32 {
-        assert!(reg as usize <= self.len - 4, "memory access out of bounds");
+    // /// Returns the register at `self.addr` + `reg`.
+    // ///
+    // /// # Panics
+    // ///
+    // /// Panics if `self.addr` + `reg` does not belong to the mapped memory of the pci device.
+    // fn get_reg32(&self, reg: u32) -> u32 {
+    //     assert!(reg as usize <= self.len - 4, "memory access out of bounds");
 
-        unsafe { ptr::read_volatile((self.addr as usize + reg as usize) as *mut u32) }
-    }
+    //     unsafe { ptr::read_volatile((self.addr as usize + reg as usize) as *mut u32) }
+    // }
 
-    /// Sets the register at `self.addr` + `reg` to `value`.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `self.addr` + `reg` does not belong to the mapped memory of the pci device.
-    fn set_reg32(&self, reg: u32, value: u32) {
-        assert!(reg as usize <= self.len - 4, "memory access out of bounds");
+    // /// Sets the register at `self.addr` + `reg` to `value`.
+    // ///
+    // /// # Panics
+    // ///
+    // /// Panics if `self.addr` + `reg` does not belong to the mapped memory of the pci device.
+    // fn set_reg32(&self, reg: u32, value: u32) {
+    //     assert!(reg as usize <= self.len - 4, "memory access out of bounds");
 
-        unsafe {
-            ptr::write_volatile((self.addr as usize + reg as usize) as *mut u32, value);
-        }
-    }
+    //     unsafe {
+    //         ptr::write_volatile((self.addr as usize + reg as usize) as *mut u32, value);
+    //     }
+    // }
 
-    /// Sets the `flags` at `self.addr` + `reg`.
-    fn set_flags32(&self, reg: u32, flags: u32) {
-        self.set_reg32(reg, self.get_reg32(reg) | flags);
-    }
+    // /// Sets the `flags` at `self.addr` + `reg`.
+    // fn set_flags32(&self, reg: u32, flags: u32) {
+    //     self.set_reg32(reg, self.get_reg32(reg) | flags);
+    // }
 
-    /// Clears the `flags` at `self.addr` + `reg`.
-    fn clear_flags32(&self, reg: u32, flags: u32) {
-        self.set_reg32(reg, self.get_reg32(reg) & !flags);
-    }
+    // /// Clears the `flags` at `self.addr` + `reg`.
+    // fn clear_flags32(&self, reg: u32, flags: u32) {
+    //     self.set_reg32(reg, self.get_reg32(reg) & !flags);
+    // }
 
-    /// Waits for `self.addr` + `reg` to clear `value`.
-    fn wait_clear_reg32(&self, reg: u32, value: u32) {
-        loop {
-            let current = self.get_reg32(reg);
-            if (current & value) == 0 {
-                break;
-            }
-            thread::sleep(Duration::from_millis(100));
-        }
-    }
+    // /// Waits for `self.addr` + `reg` to clear `value`.
+    // fn wait_clear_reg32(&self, reg: u32, value: u32) {
+    //     loop {
+    //         let current = self.get_reg32(reg);
+    //         if (current & value) == 0 {
+    //             break;
+    //         }
+    //         thread::sleep(Duration::from_millis(100));
+    //     }
+    // }
 
-    /// Waits for `self.addr` + `reg` to set `value`.
-    fn wait_set_reg32(&self, reg: u32, value: u32) {
-        loop {
-            let current = self.get_reg32(reg);
-            if (current & value) == value {
-                break;
-            }
-            thread::sleep(Duration::from_millis(100));
-        }
-    }
+    // /// Waits for `self.addr` + `reg` to set `value`.
+    // fn wait_set_reg32(&self, reg: u32, value: u32) {
+    //     loop {
+    //         let current = self.get_reg32(reg);
+    //         if (current & value) == value {
+    //             break;
+    //         }
+    //         thread::sleep(Duration::from_millis(100));
+    //     }
+    // }
 
     // /// Maps interrupt causes to vectors by specifying the `direction` (0 for Rx, 1 for Tx),
     // /// the `queue` ID and the corresponding `misx_vector`.
@@ -831,7 +831,7 @@ impl IxgbeDevice {
     /// Clear all interrupt masks for all queues.
     fn clear_interrupts(&self) {
         // Clear interrupt mask
-        self.set_reg32(IXGBE_EIMC, IXGBE_IRQ_CLEAR_MASK);
+        self.set_reg32(IXGBE_EIMC, IXGBE_IRQ_CLEAR_MASK); // Ramla: DPDK bug 23, bit 31 is reserved
         self.get_reg32(IXGBE_EICR);
     }
 

@@ -387,7 +387,7 @@ pub const IXGBE_DRECCCTL2: u32                                         = 0x02F8C
 /* Multicast Table Array - 128 entries */
 pub fn IXGBE_MTA(i: u32) -> u32 { 0x05200 + i * 4 }
 
-pub fn IXGBE_RAL(i: u32) -> u32 { if i <= 15 { 0x05400 + i * 8 } else { 0x0A200 + i * 8 } }
+pub fn IXGBE_RAL(i: u32) -> u32 { if i <= 15 { 0x05400 + i * 8 } else { 0x0A200 + i * 8 } } // Ramla:: maybe old datsheet? current one only uses A200
 
 pub fn IXGBE_RAH(i: u32) -> u32 { if i <= 15 { 0x05404 + i * 8 } else { 0x0A204 + i * 8 } }
 
