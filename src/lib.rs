@@ -13,7 +13,7 @@ extern crate log;
 mod constants;
 mod interrupts;
 mod ixgbe;
-mod ixgbevf;
+// mod ixgbevf;
 pub mod memory;
 mod pci;
 mod vfio;
@@ -23,7 +23,7 @@ mod virtio_constants;
 
 use self::interrupts::*;
 use self::ixgbe::*;
-use self::ixgbevf::*;
+// use self::ixgbevf::*;
 use self::memory::*;
 use self::pci::*;
 use self::virtio::VirtioDevice;
@@ -224,15 +224,15 @@ pub fn ixy_init(
         }
         let device = VirtioDevice::init(pci_addr)?;
         Ok(Box::new(device))
-    } else if vendor_id == 0x8086
-        && (device_id == 0x10ed || device_id == 0x1515 || device_id == 0x1565)
-    {
-        // looks like a virtual function
-        if interrupt_timeout != 0 {
-            warn!("interrupts requested but ixgbevf does not support interrupts yet");
-        }
-        let device = IxgbeVFDevice::init(pci_addr, rx_queues, tx_queues)?;
-        Ok(Box::new(device))
+    // } else if vendor_id == 0x8086
+    //     && (device_id == 0x10ed || device_id == 0x1515 || device_id == 0x1565)
+    // {
+    //     // looks like a virtual function
+    //     if interrupt_timeout != 0 {
+    //         warn!("interrupts requested but ixgbevf does not support interrupts yet");
+    //     }
+    //     let device = IxgbeVFDevice::init(pci_addr, rx_queues, tx_queues)?;
+    //     Ok(Box::new(device))
     } else {
         // let's give it a try with ixgbe
         let device = IxgbeDevice::init(pci_addr, rx_queues, tx_queues, interrupt_timeout)?;
