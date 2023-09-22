@@ -9,6 +9,14 @@ libc = "0.2"
 byteorder = "1"
 log = "0.4"
 lazy_static = "1.4.0"
+volatile = "0.2.4"
+bit_field = "0.7.0"
+static_assertions = "1.1.0"
+bitflags = "1.0.4"
 
 [dev-dependencies]
 simple_logger = "1"
+
+[dependencies.num_enum]
+version = "0.5.2"
+default-features = false

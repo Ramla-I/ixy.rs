@@ -8,6 +8,11 @@
 
 #[macro_use]
 extern crate log;
+extern crate volatile;
+extern crate bit_field;
+extern crate num_enum;
+#[macro_use] extern crate static_assertions;
+#[macro_use] extern crate bitflags;
 
 #[rustfmt::skip]
 mod constants;
@@ -20,6 +25,7 @@ mod vfio;
 mod virtio;
 #[rustfmt::skip]
 mod virtio_constants;
+mod hal;
 
 use self::interrupts::*;
 use self::ixgbe::*;
