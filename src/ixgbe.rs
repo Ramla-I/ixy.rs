@@ -371,8 +371,8 @@ impl IxgbeDevice {
         );
 
         // Check if the NIC is IOMMU enabled...
-        let vfio = Path::new(&format!("/sys/bus/pci/devices/{}/iommu_group", pci_addr)).exists();
-
+        let vfio = false; //Path::new(&format!("/sys/bus/pci/devices/{}/iommu_group", pci_addr)).exists();
+        
         let device_fd: RawFd;
         let (addr, len) = if vfio {
             device_fd = vfio_init(pci_addr)?;
