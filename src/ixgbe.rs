@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::error::Error;
 use std::mem;
 use std::os::unix::io::RawFd;
-use std::path::Path;
+// use std::path::Path;
 use std::ptr;
 use std::rc::Rc;
 use std::thread;
